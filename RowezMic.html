@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RowezMic V7 - OMEGA PRIME</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-dark: #050505;
+            --panel-bg: rgba(12, 18, 24, 0.9);
+            --neon-cyan: #00f3ff;
+            --neon-green: #0aff0a;
+            --neon-red: #ff2a2a;
+            --neon-amber: #ffae00;
+            --neon-pink: #ff0055;
+            --neon-purple: #bc13fe;
+            --grid-line: rgba(0, 243, 255, 0.03);
+            --font-head: 'Orbitron', sans-serif;
+            --font-main: 'Share Tech Mono', monospace;
+            --font-code: 'JetBrains Mono', monospace;
+        }
+
+        * { box-sizing: border-box; user-select: none; outline: none; }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--neon-cyan);
+            font-family: var(--font-main);
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+            background-image: 
+                radial-gradient(circle at center, rgba(0, 243, 255, 0.05) 0%, transparent 70%),
+                linear-gradient(var(--grid-line) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+            background-size: 100% 100%, 40px 40px, 40px 40px;
+        }
+
+        /* CRT Overlay */
+        .scanlines {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 3px, 3px 100%;
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0.4;
+        }
+
+        .main-hud {
+            display: grid;
+            grid-template-columns: 300px 1fr 280px;
+            grid-template-rows: 70px 1fr 260px;
+            gap: 15px;
+            height: 100vh;
+            padding: 15px;
+            max-width: 1920px;
+            margin: 0 auto;
+        }
+
+        /* Panels */
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid rgba(0, 243, 255, 0.15);
+            position: relative;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+            display: flex; flex-direction: column;
+            border-radius: 4px;
+        }
+        
+        .panel::after {
+            content: ''; position: absolute; top: -1px; left: -1px; right: -1px; bottom: -1px;
+            border-radius: 4px;
+            background: linear-gradient(45deg, var(--neon-cyan), transparent 40%, transparent 60%, var(--neon-purple));
+            z-index: -1; opacity: 0.3;
+        }
+
+        .panel-header {
+            background: rgba(0, 243, 255, 0.03);
+            padding: 10px 12px;
+            font-size: 0.75rem;
+            font-family: var(--font-head);
+            letter-spacing: 1px;
+            border-bottom: 1px solid rgba(0, 243, 255, 0.1);
+            color: rgba(255,255,255,0.8);
+            display: flex; justify-content: space-between; align-items: center;
+            text-shadow: 0 0 5px rgba(0, 243, 255, 0.3);
+        }
+
+        /* Header */
+        .header-bar {
+            grid-column: 1 / -1;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 20px;
+            border-bottom: 2px solid var(--neon-cyan);
+            background: rgba(0,0,0,0.6);
+            box-shadow: 0 5px 20px rgba(0, 243, 255, 0.1);
+        }
+
+        .logo-text { font-family: var(--font-head); font-size: 2.2rem; font-weight: 900; background: linear-gradient(to right, #fff, var(--neon-cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .logo-sub { font-size: 0.7rem; color: var(--neon-purple); letter-spacing: 6px; text-transform: uppercase; margin-top: -5px; }
+        .sys-time { font-family: var(--font-code); color: var(--neon-green); text-shadow: 0 0 10px var(--neon-green); font-size: 1.2rem; }
+
+        /* Grid Layout */
+        .col-left { grid-row: 2 / 4; display: flex; flex-direction: column; gap: 15px; overflow-y: auto; }
+        .col-center { grid-column: 2; grid-row: 2; position: relative; border: 1px solid var(--neon-cyan); background: radial-gradient(circle, #0a0a0a 0%, #000 100%); overflow: hidden; box-shadow: inset 0 0 50px rgba(0,0,0,0.8); }
+        .col-right { grid-row: 2 / 4; display: flex; flex-direction: column; gap: 15px; }
+        .bottom-deck { grid-column: 2; grid-row: 3; display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+
+        /* Controls */
+        .hud-btn {
+            background: rgba(0, 243, 255, 0.05);
+            border: 1px solid var(--neon-cyan);
+            color: var(--neon-cyan);
+            padding: 12px;
+            font-family: var(--font-head);
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            width: 100%;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+            position: relative; overflow: hidden;
+        }
+        .hud-btn:hover:not(:disabled) { background: var(--neon-cyan); color: #000; box-shadow: 0 0 25px var(--neon-cyan); }
+        .hud-btn:disabled { border-color: #333; color: #444; cursor: not-allowed; }
+        
+        .hud-btn.active-green { background: rgba(10, 255, 10, 0.15); border-color: var(--neon-green); color: var(--neon-green); box-shadow: 0 0 10px var(--neon-green) inset; }
+        .hud-btn.active-red { background: rgba(255, 42, 42, 0.15); border-color: var(--neon-red); color: var(--neon-red); animation: pulseRed 1s infinite; }
+
+        /* Select Box */
+        .tech-select {
+            width: 100%;
+            background: #000;
+            color: var(--neon-cyan);
+            border: 1px solid #333;
+            padding: 8px;
+            font-family: var(--font-code);
+            font-size: 0.7rem;
+            margin-bottom: 10px;
+        }
+
+        /* Sliders */
+        .fader-wrap { margin-bottom: 15px; position: relative; padding: 0 5px; }
+        .fader-label { font-size: 0.7rem; color: rgba(255,255,255,0.6); display: flex; justify-content: space-between; margin-bottom: 6px; font-family: var(--font-code); }
+        .val-display { color: #fff; text-shadow: 0 0 5px var(--neon-cyan); }
+        
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-track { width: 100%; height: 4px; background: #222; border-radius: 2px; border: 1px solid #333; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 16px; width: 10px;
+            background: #000; border: 1px solid var(--neon-cyan);
+            border-radius: 2px; margin-top: -7px; cursor: pointer;
+            box-shadow: 0 0 10px var(--neon-cyan); transition: 0.2s;
+        }
+        input[type=range]:hover::-webkit-slider-thumb { background: var(--neon-cyan); }
+
+        /* Color Variations for Sliders */
+        .sl-green input[type=range]::-webkit-slider-thumb { border-color: var(--neon-green); box-shadow: 0 0 10px var(--neon-green); }
+        .sl-green input[type=range]:hover::-webkit-slider-thumb { background: var(--neon-green); }
+        .sl-amber input[type=range]::-webkit-slider-thumb { border-color: var(--neon-amber); box-shadow: 0 0 10px var(--neon-amber); }
+        .sl-amber input[type=range]:hover::-webkit-slider-thumb { background: var(--neon-amber); }
+        .sl-pink input[type=range]::-webkit-slider-thumb { border-color: var(--neon-pink); box-shadow: 0 0 10px var(--neon-pink); }
+        .sl-pink input[type=range]:hover::-webkit-slider-thumb { background: var(--neon-pink); }
+
+        /* Canvas */
+        #vizCanvas { width: 100%; height: 100%; }
+
+        /* Terminal */
+        .terminal {
+            flex: 1; background: rgba(0,0,0,0.8); padding: 10px; font-family: var(--font-code); font-size: 0.7rem;
+            overflow-y: auto; color: #888; border-top: 2px solid var(--neon-cyan);
+        }
+        .log-ln { margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 2px; }
+        .log-ln::before { content: '>>'; color: var(--neon-cyan); margin-right: 8px; font-weight: bold; }
+        .log-warn { color: var(--neon-amber); }
+        .log-err { color: var(--neon-red); }
+
+        /* Presets */
+        .preset-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; padding: 10px; }
+        .preset-btn { font-size: 0.65rem !important; padding: 10px !important; margin: 0 !important; background: rgba(255,255,255,0.02); border: 1px solid #333; }
+        .preset-btn:hover { border-color: #fff; }
+
+        @keyframes pulseRed { 0% { opacity: 1; } 50% { opacity: 0.5; box-shadow: 0 0 20px var(--neon-red); } 100% { opacity: 1; } }
+
+        @media (max-width: 1200px) {
+            .main-hud { grid-template-columns: 280px 1fr; grid-template-rows: 70px 400px 1fr; height: auto; display:block; overflow-y:auto; }
+            .col-left, .col-center, .col-right, .bottom-deck, .header-bar { margin-bottom: 20px; }
+            .col-center { height: 300px; }
+            .bottom-deck { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="scanlines"></div>
+
+<div class="main-hud">
+    <!-- Header -->
+    <header class="header-bar">
+        <div>
+            <div class="logo-text">ROWEZ<span style="color:#fff; font-weight:300">MIC</span></div>
+            <div class="logo-sub">// OMEGA PRIME DSP V7.0</div>
+        </div>
+        <div class="sys-time" id="sysTime">00:00:00</div>
+    </header>
+
+    <!-- LEFT COLUMN -->
+    <aside class="col-left">
+        <div class="panel">
+            <div class="panel-header"><span>SYSTEM INPUT</span><i class="fa-solid fa-microchip"></i></div>
+            <div style="padding: 15px;">
+                <select id="audioSource" class="tech-select">
+                    <option value="default">Default Input Device</option>
+                </select>
+                <button id="btnInit" class="hud-btn"><i class="fa-solid fa-power-off"></i> ACTIVATE CORE</button>
+                <button id="btnRec" class="hud-btn" disabled><i class="fa-solid fa-record-vinyl"></i> REC MASTER</button>
+                <input type="file" id="fileInput" accept="audio/*" style="display:none">
+                <button class="hud-btn" onclick="document.getElementById('fileInput').click()" style="font-size:0.7rem; border-style:dashed;">
+                    <i class="fa-solid fa-folder-open"></i> LOAD FILE
+                </button>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header"><span>DYNAMICS / GATE</span><i class="fa-solid fa-wave-square"></i></div>
+            <div style="padding: 15px;">
+                <div class="fader-wrap">
+                    <div class="fader-label"><span>INPUT GAIN</span><span id="valGain" class="val-display">100%</span></div>
+                    <input type="range" id="sldGain" min="0" max="200" value="100">
+                </div>
+                <div class="fader-wrap">
+                    <div class="fader-label"><span>NOISE GATE</span><span id="valGate" class="val-display">-60dB</span></div>
+                    <input type="range" id="sldGate" min="-100" max="-10" value="-60">
+                </div>
+                <div class="fader-wrap sl-green">
+                    <div class="fader-label"><span>COMPRESSOR</span><span id="valComp" class="val-display">-24dB</span></div>
+                    <input type="range" id="sldComp" min="-60" max="0" value="-24">
+                </div>
+            </div>
+        </div>
+
+        <div class="panel" style="flex:1;">
+            <div class="panel-header" style="color:var(--neon-green)"><span>TACTICAL PRESETS</span><i class="fa-solid fa-border-all"></i></div>
+            <div class="preset-grid">
+                <button class="hud-btn preset-btn" onclick="loadPreset('clean')">CLEAN OPS</button>
+                <button class="hud-btn preset-btn" onclick="loadPreset('radio')">MIL-RADIO</button>
+                <button class="hud-btn preset-btn" onclick="loadPreset('deep')">COMMANDER</button>
+                <button class="hud-btn preset-btn" onclick="loadPreset('robot')">MECHA-BOT</button>
+                <button class="hud-btn preset-btn" onclick="loadPreset('cyber')">CYBERPUNK</button>
+                <button class="hud-btn preset-btn" onclick="loadPreset('ethereal')">VOID</button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- CENTER VISUALIZER -->
+    <section class="col-center">
+        <canvas id="vizCanvas"></canvas>
+        <div style="position:absolute; top:10px; left:10px; display:flex; gap:5px;">
+            <span style="font-size:0.6rem; background:var(--neon-red); color:#000; padding:2px 5px; font-weight:bold; opacity:0" id="recBadge">REC</span>
+        </div>
+        <div style="position:absolute; bottom:10px; right:10px; text-align:right;">
+             <span style="font-size:0.7rem; color:rgba(255,255,255,0.5)">ANALYSIS_MODE: FFT_DUAL_LAYER</span>
+        </div>
+    </section>
+
+    <!-- RIGHT COLUMN -->
+    <aside class="col-right">
+        <div class="panel" style="flex:1;">
+            <div class="panel-header"><span>SYSTEM LOG</span><i class="fa-solid fa-terminal"></i></div>
+            <div class="terminal" id="consoleLog">
+                <div class="log-ln">System Initializing...</div>
+                <div class="log-ln">Waiting for user interaction.</div>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <div class="panel-header" style="color:var(--neon-purple)"><span>STEREO FIELD</span><i class="fa-solid fa-headphones"></i></div>
+            <div style="padding:15px;">
+                <div class="fader-wrap sl-pink">
+                    <div class="fader-label"><span>PANNING</span><span id="valManualPan" class="val-display">C</span></div>
+                    <input type="range" id="sldManualPan" min="-10" max="10" value="0">
+                </div>
+                <div class="fader-wrap sl-pink">
+                    <div class="fader-label"><span>AUTO-PAN SPEED</span><span id="valPan" class="val-display">OFF</span></div>
+                    <input type="range" id="sldPan" min="0" max="50" value="0">
+                </div>
+                <div class="fader-wrap sl-pink">
+                    <div class="fader-label"><span>PING-PONG DELAY</span><span id="valDelay" class="val-display">0%</span></div>
+                    <input type="range" id="sldDelay" min="0" max="90" value="0">
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- BOTTOM DECK -->
+    <footer class="bottom-deck">
+        <!-- EQ -->
+        <div class="panel">
+            <div class="panel-header"><span>3-BAND EQUALIZER</span></div>
+            <div style="padding:15px; display:flex; gap:10px; align-items:center; height:100%;">
+                <div style="flex:1; text-align:center;">
+                    <input type="range" id="sldEqLow" min="-15" max="25" value="0" style="writing-mode: bt-lr; -webkit-appearance: slider-vertical; height: 100px; width:100%;">
+                    <div style="font-size:0.7rem; margin-top:5px; color:var(--neon-cyan)">LOW</div>
+                </div>
+                <div style="flex:1; text-align:center;">
+                    <input type="range" id="sldEqMid" min="-15" max="15" value="0" style="writing-mode: bt-lr; -webkit-appearance: slider-vertical; height: 100px; width:100%;">
+                    <div style="font-size:0.7rem; margin-top:5px; color:var(--neon-cyan)">MID</div>
+                </div>
+                <div style="flex:1; text-align:center;">
+                    <input type="range" id="sldEqHi" min="-15" max="15" value="0" style="writing-mode: bt-lr; -webkit-appearance: slider-vertical; height: 100px; width:100%;">
+                    <div style="font-size:0.7rem; margin-top:5px; color:var(--neon-cyan)">HI</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FX MODULATION -->
+        <div class="panel">
+            <div class="panel-header" style="color:var(--neon-amber)"><span>MODULATION FX</span></div>
+            <div style="padding:15px;">
+                <div class="fader-wrap sl-amber">
+                    <div class="fader-label"><span>DEEP VOICE (Sub-Osc)</span><span id="valRing" class="val-display">OFF</span></div>
+                    <input type="range" id="sldRing" min="0" max="100" value="0">
+                </div>
+                <div class="fader-wrap sl-amber">
+                    <div class="fader-label"><span>ROBOTIZE (Comb Filter)</span><span id="valRobot" class="val-display">OFF</span></div>
+                    <input type="range" id="sldRobot" min="0" max="100" value="0">
+                </div>
+                <div class="fader-wrap sl-amber">
+                    <div class="fader-label"><span>DISTORTION</span><span id="valCrush" class="val-display">OFF</span></div>
+                    <input type="range" id="sldCrush" min="0" max="100" value="0">
+                </div>
+                <div class="fader-wrap sl-amber">
+                    <div class="fader-label"><span>REVERB SIZE</span><span id="valRev" class="val-display">0%</span></div>
+                    <input type="range" id="sldRev" min="0" max="100" value="0">
+                </div>
+            </div>
+        </div>
+
+        <!-- MASTER -->
+        <div class="panel">
+            <div class="panel-header"><span>MASTER OUTPUT</span></div>
+            <div style="padding:15px; display:flex; flex-direction:column; justify-content:space-between; height:100%;">
+                <div class="fader-wrap sl-green">
+                    <div class="fader-label"><span>HARD LIMITER</span><span id="valLim" class="val-display">-1.0dB</span></div>
+                    <input type="range" id="sldLim" min="-10" max="0" value="-1.0" step="0.1">
+                </div>
+                
+                <button id="btnMonitor" class="hud-btn" style="border-color:var(--neon-amber); color:var(--neon-amber); opacity:0.8;">
+                    <i class="fa-solid fa-ear-listen"></i> MONITOR (HEAR SELF)
+                </button>
+            </div>
+        </div>
+    </footer>
+</div>
+
+<script>
+    /* --- RowezMic Core V7 OMEGA PRIME --- */
+    
+    // UI Utility
+    const $ = id => document.getElementById(id);
+    const log = (msg, type='info') => {
+        const t = new Date().toLocaleTimeString('tr-TR');
+        const div = document.createElement('div');
+        div.className = 'log-ln ' + (type === 'err' ? 'log-err' : (type==='warn'?'log-warn':''));
+        div.innerHTML = `<span style="opacity:0.6">[${t}]</span> ${msg}`;
+        $('consoleLog').appendChild(div);
+        $('consoleLog').scrollTop = $('consoleLog').scrollHeight;
+    };
+    
+    // Clock
+    setInterval(() => $('sysTime').innerText = new Date().toLocaleTimeString('en-US', {hour12:false}), 1000);
+
+    // Audio State
+    let actx, src;
+    let nodes = {}; 
+    let isInit = false;
+    let isRec = false;
+    let mediaRecorder, chunks = [];
+    let lfoOsc; 
+    let audioDevices = [];
+
+    // 1. Device Enumeration (Mic Selection)
+    async function getAudioInputs() {
+        try {
+            await navigator.mediaDevices.getUserMedia({ audio: true }); // Request permission first
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const audioSelect = $('audioSource');
+            audioSelect.innerHTML = '';
+            
+            const inputs = devices.filter(device => device.kind === 'audioinput');
+            inputs.forEach(device => {
+                const option = document.createElement('option');
+                option.value = device.deviceId;
+                option.text = device.label || `Microphone ${audioSelect.length + 1}`;
+                audioSelect.appendChild(option);
+            });
+            log(`Found ${inputs.length} input devices.`);
+        } catch (e) {
+            log("Mic permission denied or error listing devices.", "err");
+        }
+    }
+    getAudioInputs();
+
+    // 2. Audio Engine Core
+    async function initCore(fileStream = null) {
+        if(isInit && !fileStream) {
+            // Just resume if suspended
+            if(actx && actx.state === 'suspended') {
+                await actx.resume();
+                log("Audio Engine Resumed.");
+                return;
+            }
+            return;
+        }
+        
+        try {
+            if(!actx) actx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+            
+            // Input Source Logic
+            if(src) src.disconnect();
+
+            if (fileStream) {
+                // File Mode
+                src = actx.createMediaElementSource(fileStream);
+                log("Audio File Source Loaded.");
+            } else {
+                // Mic Mode with Selection
+                const deviceId = $('audioSource').value;
+                const constraints = { 
+                    audio: { 
+                        deviceId: deviceId ? { exact: deviceId } : undefined,
+                        echoCancellation: false, 
+                        noiseSuppression: false, 
+                        autoGainControl: false,
+                        latency: 0
+                    } 
+                };
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                src = actx.createMediaStreamSource(stream);
+                log("Microphone Source Locked.");
+            }
+
+            // --- DSP CHAIN CONSTRUCTION ---
+            
+            // Input Gain & Gate
+            nodes.inGain = actx.createGain();
+            nodes.gate = actx.createDynamicsCompressor();
+            nodes.gate.threshold.value = -60; nodes.gate.ratio.value = 20; nodes.gate.attack.value = 0;
+
+            // Tone Shaping (EQ)
+            nodes.eqLow = actx.createBiquadFilter(); nodes.eqLow.type = 'lowshelf'; nodes.eqLow.frequency.value = 150;
+            nodes.eqMid = actx.createBiquadFilter(); nodes.eqMid.type = 'peaking'; nodes.eqMid.frequency.value = 1000; nodes.eqMid.Q.value = 1;
+            nodes.eqHi = actx.createBiquadFilter(); nodes.eqHi.type = 'highshelf'; nodes.eqHi.frequency.value = 8000;
+
+            // --- EFFECTS ---
+
+            // 1. Deep Voice (Ring Mod)
+            nodes.ringGain = actx.createGain(); nodes.ringGain.gain.value = 0;
+            nodes.ringOsc = actx.createOscillator(); nodes.ringOsc.frequency.value = 50; nodes.ringOsc.start();
+            nodes.modulator = actx.createGain(); nodes.modulator.gain.value = 0; 
+            nodes.ringOsc.connect(nodes.modulator.gain);
+
+            // 2. Robotize (Comb Filter)
+            nodes.robotDelay = actx.createDelay(); nodes.robotDelay.delayTime.value = 0.01; // Short delay = metallic
+            nodes.robotFb = actx.createGain(); nodes.robotFb.gain.value = 0;
+            nodes.robotIn = actx.createGain(); nodes.robotIn.gain.value = 0;
+            // Routing for robot happens in connect phase
+
+            // 3. Distortion
+            nodes.dist = actx.createWaveShaper(); nodes.dist.curve = makeDistCurve(0);
+
+            // 4. Stereo Delay (PingPong)
+            nodes.delayL = actx.createDelay(); nodes.delayR = actx.createDelay();
+            nodes.delayL.delayTime.value = 0.3; nodes.delayR.delayTime.value = 0.4; 
+            nodes.delayFb = actx.createGain(); nodes.delayFb.gain.value = 0;
+            nodes.delayWet = actx.createGain(); nodes.delayWet.gain.value = 0;
+
+            // 5. Reverb
+            nodes.revConv = actx.createConvolver();
+            nodes.revGain = actx.createGain(); nodes.revGain.gain.value = 0;
+            makeReverbImpulse(2.0);
+
+            // 6. Dynamics
+            nodes.comp = actx.createDynamicsCompressor();
+            nodes.comp.threshold.value = -24; nodes.comp.ratio.value = 6;
+
+            // 7. Spatial
+            nodes.panner = actx.createStereoPanner();
+            
+            // Auto-Pan LFO
+            lfoOsc = actx.createOscillator(); lfoOsc.frequency.value = 0;
+            nodes.lfoGain = actx.createGain(); nodes.lfoGain.gain.value = 0; 
+            lfoOsc.connect(nodes.lfoGain); nodes.lfoGain.connect(nodes.panner.pan);
+            lfoOsc.start();
+
+            // 8. Output
+            nodes.limiter = actx.createDynamicsCompressor();
+            nodes.limiter.threshold.value = -1; nodes.limiter.ratio.value = 20; nodes.limiter.attack.value = 0;
+            
+            nodes.analyser = actx.createAnalyser();
+            nodes.analyser.fftSize = 2048;
+            nodes.analyser.smoothingTimeConstant = 0.85;
+
+            nodes.outGain = actx.createGain(); nodes.outGain.gain.value = 0; // Muted initially
+
+            // --- ROUTING MATRIX ---
+            // Main Path
+            src.connect(nodes.inGain);
+            nodes.inGain.connect(nodes.gate);
+            nodes.gate.connect(nodes.eqLow);
+            nodes.eqLow.connect(nodes.eqMid);
+            nodes.eqMid.connect(nodes.eqHi);
+
+            // Split point for Parallel Processing
+            const dryNode = nodes.eqHi;
+
+            // 1. Robot Path (Parallel)
+            dryNode.connect(nodes.robotIn);
+            nodes.robotIn.connect(nodes.robotDelay);
+            nodes.robotDelay.connect(nodes.robotFb);
+            nodes.robotFb.connect(nodes.robotDelay); // Loop
+            nodes.robotDelay.connect(nodes.comp); // Merge back
+
+            // 2. Ring Mod Path (Deep Voice)
+            dryNode.connect(nodes.modulator);
+            nodes.modulator.connect(nodes.ringGain);
+            nodes.ringGain.connect(nodes.dist); // Ring goes into dist
+
+            // 3. Dry Path -> Dist
+            dryNode.connect(nodes.dist);
+
+            // Effects Chain
+            nodes.dist.connect(nodes.revConv);
+            nodes.revConv.connect(nodes.revGain);
+            nodes.revGain.connect(nodes.comp);
+
+            // Delay Routing
+            nodes.dist.connect(nodes.delayL);
+            nodes.delayL.connect(nodes.delayR); 
+            nodes.delayR.connect(nodes.delayFb);
+            nodes.delayFb.connect(nodes.delayL); 
+            nodes.delayR.connect(nodes.delayWet);
+            nodes.delayL.connect(nodes.delayWet);
+            nodes.delayWet.connect(nodes.comp);
+
+            // Re-join at Compressor
+            nodes.dist.connect(nodes.comp);
+
+            // Final Output Stage
+            nodes.comp.connect(nodes.panner);
+            nodes.panner.connect(nodes.limiter);
+            nodes.limiter.connect(nodes.analyser);
+            nodes.analyser.connect(nodes.outGain);
+            nodes.outGain.connect(actx.destination);
+
+            // Recording Setup
+            const recDest = actx.createMediaStreamDestination();
+            nodes.limiter.connect(recDest);
+            mediaRecorder = new MediaRecorder(recDest.stream);
+            mediaRecorder.ondataavailable = e => chunks.push(e.data);
+            mediaRecorder.onstop = saveRecording;
+
+            // Update UI
+            isInit = true;
+            $('btnInit').classList.add('active-green');
+            $('btnInit').innerHTML = '<i class="fa-solid fa-signal"></i> SYSTEM ONLINE';
+            $('btnRec').disabled = false;
+            
+            drawViz();
+            log("DSP Matrix V7 Configured. All Systems Green.");
+
+        } catch (e) {
+            log("INIT ERROR: " + e.message, "err");
+            console.error(e);
+        }
+    }
+
+    /* --- Advanced Visualizer --- */
+    function drawViz() {
+        const cvs = $('vizCanvas');
+        const ctx = cvs.getContext('2d');
+        const w = cvs.width = cvs.clientWidth;
+        const h = cvs.height = cvs.clientHeight;
+        const cx = w/2, cy = h/2;
+        
+        const bufferLen = nodes.analyser.frequencyBinCount;
+        const dataFreq = new Uint8Array(bufferLen);
+        const dataWave = new Uint8Array(bufferLen);
+
+        const draw = () => {
+            requestAnimationFrame(draw);
+            nodes.analyser.getByteFrequencyData(dataFreq);
+            nodes.analyser.getByteTimeDomainData(dataWave);
+
+            // Background Fade
+            ctx.fillStyle = 'rgba(5, 5, 5, 0.2)';
+            ctx.fillRect(0,0,w,h);
+
+            // 1. Circular FFT (Bass Reactive)
+            const bassAvg = dataFreq.slice(0, 10).reduce((a,b)=>a+b,0) / 10;
+            const radius = 50 + (bassAvg / 255) * 40;
+            
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, Math.PI*2);
+            ctx.strokeStyle = `rgba(0, 243, 255, ${0.1 + (bassAvg/500)})`;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // 2. Radial Bars
+            const bars = 60;
+            const step = Math.floor(bufferLen / bars);
+            
+            for(let i=0; i<bars; i++) {
+                const val = dataFreq[i*step];
+                const rad = (Math.PI * 2 / bars) * i;
+                const barLen = (val / 255) * (Math.min(w,h)/2.5);
+                
+                const x1 = cx + Math.cos(rad) * (radius + 5);
+                const y1 = cy + Math.sin(rad) * (radius + 5);
+                const x2 = cx + Math.cos(rad) * (radius + 5 + barLen);
+                const y2 = cy + Math.sin(rad) * (radius + 5 + barLen);
+
+                ctx.strokeStyle = `hsl(${180 + (val/2)}, 100%, 50%)`;
+                ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+            }
+
+            // 3. Center Waveform
+            ctx.beginPath();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            const waveScale = radius * 0.8;
+            for(let i=0; i<bufferLen; i+=10) {
+                const v = (dataWave[i] / 128.0) - 1; // -1 to 1
+                const ang = (i / bufferLen) * Math.PI * 2;
+                const r = (radius * 0.5) + (v * 20);
+                const x = cx + Math.cos(ang) * r;
+                const y = cy + Math.sin(ang) * r;
+                if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+            }
+            ctx.closePath();
+            ctx.stroke();
+        };
+        draw();
+    }
+
+    /* --- DSP Helpers --- */
+    function makeDistCurve(amount) {
+        const k = amount, n = 44100, curve = new Float32Array(n), deg = Math.PI / 180;
+        for (let i=0; i<n; ++i) {
+            const x = i * 2 / n - 1;
+            curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
+        }
+        return curve;
+    }
+
+    function makeReverbImpulse(seconds) {
+        const rate = actx.sampleRate, len = rate * seconds;
+        const imp = actx.createBuffer(2, len, rate);
+        for (let i=0; i<2; i++) {
+            const ch = imp.getChannelData(i);
+            for (let j=0; j<len; j++) ch[j] = (Math.random() * 2 - 1) * Math.pow(1 - j/len, 3);
+        }
+        nodes.revConv.buffer = imp;
+    }
+
+    function saveRecording() {
+        const blob = new Blob(chunks, { 'type' : 'audio/wav; codecs=MS_PCM' });
+        chunks = [];
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `OMEGA_REC_${Date.now()}.wav`;
+        a.click();
+        log("Recording exported to local drive.");
+        $('recBadge').style.opacity = 0;
+    }
+
+    /* --- Event Listeners & Logic --- */
+    $('btnInit').onclick = () => initCore();
+    $('audioSource').onchange = () => { if(isInit) { log("Switching Input..."); initCore(); }};
+
+    $('btnRec').onclick = () => {
+        if(!isRec) {
+            mediaRecorder.start();
+            $('btnRec').classList.add('active-red');
+            $('btnRec').innerHTML = '<i class="fa-solid fa-square"></i> STOP REC';
+            $('recBadge').style.opacity = 1;
+            log("Recording started.");
+            isRec = true;
+        } else {
+            mediaRecorder.stop();
+            $('btnRec').classList.remove('active-red');
+            $('btnRec').innerHTML = '<i class="fa-solid fa-record-vinyl"></i> REC MASTER';
+            isRec = false;
+        }
+    };
+
+    $('btnMonitor').onclick = () => {
+        if(nodes.outGain.gain.value === 0) {
+            nodes.outGain.gain.value = 1;
+            $('btnMonitor').classList.add('active-green');
+            log("Monitor ACTIVE. Beware of feedback loop!", "warn");
+        } else {
+            nodes.outGain.gain.value = 0;
+            $('btnMonitor').classList.remove('active-green');
+            log("Monitor Muted.");
+        }
+    };
+
+    // Generic Linker
+    const link = (id, targetNode, param, scale=1, suffix='', cb=null) => {
+        $(id).oninput = e => {
+            const v = parseFloat(e.target.value);
+            if(isInit && nodes[targetNode]) nodes[targetNode][param].value = v * scale;
+            
+            // Display Update
+            const sib = e.target.parentElement.querySelector('.val-display');
+            if(sib) sib.innerText = v + suffix;
+            
+            if(cb) cb(v);
+        };
+    };
+
+    // Mappings
+    link('sldGain', 'inGain', 'gain', 0.01, '%');
+    link('sldGate', 'gate', 'threshold', 1, 'dB');
+    link('sldComp', 'comp', 'threshold', 1, 'dB');
+    
+    link('sldEqLow', 'eqLow', 'gain', 1, 'dB');
+    link('sldEqMid', 'eqMid', 'gain', 1, 'dB');
+    link('sldEqHi', 'eqHi', 'gain', 1, 'dB');
+    
+    link('sldLim', 'limiter', 'threshold', 1, 'dB');
+
+    // FX Complex Mappings
+    $('sldRing').oninput = e => {
+        const v = parseInt(e.target.value);
+        $('valRing').innerText = v === 0 ? "OFF" : v + '%';
+        if(isInit) {
+            nodes.modulator.gain.setTargetAtTime(1.0, actx.currentTime, 0.1);
+            nodes.ringGain.gain.setTargetAtTime(v/100, actx.currentTime, 0.1);
+        }
+    };
+
+    $('sldRobot').oninput = e => {
+        const v = parseInt(e.target.value);
+        $('valRobot').innerText = v === 0 ? "OFF" : v + '%';
+        if(isInit) {
+            nodes.robotIn.gain.setTargetAtTime(v > 0 ? 1 : 0, actx.currentTime, 0.1);
+            nodes.robotFb.gain.setTargetAtTime((v/100) * 0.9, actx.currentTime, 0.1); // High feedback for metal sound
+        }
+    };
+
+    $('sldCrush').oninput = e => {
+        const v = parseInt(e.target.value);
+        $('valCrush').innerText = v === 0 ? "OFF" : v + '%';
+        if(isInit) nodes.dist.curve = makeDistCurve(v * 4);
+    };
+
+    $('sldRev').oninput = e => {
+        const v = parseInt(e.target.value);
+        $('valRev').innerText = v + '%';
+        if(isInit) nodes.revGain.gain.setTargetAtTime((v/100) * 1.5, actx.currentTime, 0.1);
+    };
+
+    // Stereo Mappings
+    $('sldManualPan').oninput = e => {
+        const v = parseFloat(e.target.value);
+        $('valManualPan').innerText = v === 0 ? "C" : (v < 0 ? "L"+Math.abs(v) : "R"+v);
+        if(isInit) nodes.panner.pan.value = v / 10;
+    };
+
+    $('sldPan').oninput = e => {
+        const v = e.target.value / 5;
+        $('valPan').innerText = v === 0 ? "OFF" : v + 'Hz';
+        if(isInit) {
+            lfoOsc.frequency.value = v;
+            nodes.lfoGain.gain.value = v > 0 ? 1 : 0;
+        }
+    };
+
+    $('sldDelay').oninput = e => {
+        const v = e.target.value;
+        $('valDelay').innerText = v + '%';
+        if(isInit) {
+            nodes.delayFb.gain.value = v / 100;
+            nodes.delayWet.gain.value = v > 0 ? 0.6 : 0;
+        }
+    };
+
+    /* --- Preset Manager V7 --- */
+    window.loadPreset = (type) => {
+        if(!isInit) return;
+        const set = (id, val) => { const el = $(id); el.value = val; el.dispatchEvent(new Event('input')); };
+
+        // Reset all first
+        set('sldRing', 0); set('sldRobot', 0); set('sldCrush', 0); set('sldRev', 0); 
+        set('sldDelay', 0); set('sldPan', 0); set('sldEqLow', 0); set('sldEqMid', 0); set('sldEqHi', 0);
+
+        if(type === 'clean') {
+            set('sldGate', -50); set('sldComp', -20); set('sldRev', 5);
+            log("Preset: CLEAN OPS loaded.");
+        }
+        else if(type === 'radio') {
+            set('sldEqLow', -15); set('sldEqHi', -15); set('sldEqMid', 15);
+            set('sldCrush', 85); set('sldComp', -35);
+            log("Preset: MIL-RADIO loaded.");
+        }
+        else if(type === 'deep') {
+            set('sldEqLow', 15); set('sldEqHi', -5); set('sldRing', 65);
+            set('sldRev', 10);
+            log("Preset: COMMANDER loaded.");
+        }
+        else if(type === 'robot') {
+            set('sldRobot', 80); set('sldComp', -30); set('sldEqMid', 5);
+            log("Preset: MECHA-BOT loaded.");
+        }
+        else if(type === 'cyber') {
+            set('sldDelay', 60); set('sldPan', 10); set('sldCrush', 30); set('sldEqHi', 10);
+            log("Preset: CYBERPUNK loaded.");
+        }
+        else if(type === 'ethereal') {
+            set('sldRev', 100); set('sldDelay', 50); set('sldEqHi', 15);
+            log("Preset: VOID loaded.");
+        }
+    };
+
+    // File Drop Handler
+    const fi = $('fileInput');
+    fi.onchange = e => {
+        const file = e.target.files[0];
+        if(!file || !file.type.startsWith('audio')) return;
+        const audio = new Audio(URL.createObjectURL(file));
+        audio.loop = true;
+        initCore(audio);
+        audio.play();
+        log(`Loaded Audio File: ${file.name}`);
+    };
+
+</script>
+</body>
+</html>
